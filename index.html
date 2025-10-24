@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registro de Ocorrências - Quintas do Lago</title>
+<link rel="manifest" href="manifest.json">
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js");
+  }
+</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f6fa; color: #333; margin: 0; padding: 20px; }
+    h1, h2 { color: #005b99; }
+    .card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    input, select, textarea, button { width: 100%; margin: 8px 0; padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
+    button { background: #005b99; color: white; font-weight: bold; cursor: pointer; }
+    button:hover { background: #0077cc; }
+    #painel, #registro { display: none; }
+    img { max-width: 150px; border-radius: 8px; margin-top: 10px; }
+    .admin { border: 2px solid #0077cc; padding: 10px; margin-top: 20px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; }
+    .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    .filters input, .filters select { flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>Registro de Ocorrências</h1>
+ <h1><img src="https://reombcvqyieerjomosbn.supabase.co/storage/v1/object/public/Assets/logo.png" alt="Logo" style="max-width:200px;">
+    <button id="btnSair" style="display:none; width:auto; padding:8px 16px;">Sair</button>
+  </div>
+
+  <div id="login" class="card">
+    <h2>Entrar</h2>
+    <input type="text" id="loginUser" placeholder="Nome ou telefone" />
+    <input type="password" id="loginPass" placeholder="Senha" />
+    <button id="btnLogin">Entrar</button>
+  </div>
+
+  <div id="registro" class="card">
+    <h2>Registrar Ocorrência</h2>
+    <select id="tipo">
+      <option value="">Selecione o tipo</option>
+      <option>Segurança</option>
+      <option>Iluminação</option>
+      <option>Limpeza</option>
+      <option>Infraestrutura</option>
+      <option>Outros</option>
+    </select>
+    <input type="date" id="data" />
+    <input type="time" id="hora" />
+    <input type="text" id="local" placeholder="Local" />
+    <textarea id="observacao" placeholder="Observações"></textarea>
+    <input type="file" id="imagem" accept="image/*" />
+    <button id="btnSalvar">Registrar</button>
+  </div>
+
+  <div id="painel" class="card">
+    <h2>Ocorrências Registradas</h2>
+
+    <div class="filters">
+      <select id="filtroStatus">
+        <option value="todas">Todas</option>
+        <option value="pendente">Pendentes</option>
+        <option value="concluída">Concluídas</option>
+      </select>
+    </div>
+
+    <div id="listaOcorrencias"></div>
+
+    <div id="adminPanel" class="admin" style="display:none;">
+      <h3>Painel do Master</h3>
+      <div class="filters">
+        <input type="date" id="dataInicio" />
+        <input type="date" id="dataFim" />
+      </div>
+      <button id="btnPDF">Gerar Relatório PDF</button>
+    </div>
+  </div>
+
+<script>
+  const SUPABASE_URL = "https://uudiqxghmognvkqfmknu.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1ZGlxeGdobW9nbnZrcWZta251Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyMDQ2MjMsImV4cCI6MjA3NTc4MDYyM30.oGj4_C_GUvdK5WEdIl3dWCZzwAUkCf3FTOvEPn0ERBY";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentUser = null;
+  let isMaster = false;
+  let ocorrenciasCache = [];
+
+  // Login
+  document.getElementById("btnLogin").onclick = async () => {
+    const user = document.getElementById("loginUser").value.trim();
+    const pass = document.getElementById("loginPass").value.trim();
+    if (!user || !pass) return alert("Preencha os campos.");
+
+    if (user === "Quintas do Lago" && pass === "12345678") {
+      currentUser = "00000000-0000-0000-0000-000000000000";
+      isMaster = true;
+      showApp();
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select("*")
+      .or(`nome.eq.${user},telefone.eq.${user}`)
+      .eq("senha", pass)
+      .single();
+
+    if (error || !data) return alert("Usuário ou senha inválidos.");
+    currentUser = data.id;
+    showApp();
+  };
+
+  // Sair
+  document.getElementById("btnSair").onclick = () => {
+    currentUser = null;
+    isMaster = false;
+    document.getElementById("login").style.display = "block";
+    document.getElementById("registro").style.display = "none";
+    document.getElementById("painel").style.display = "none";
+    document.getElementById("btnSair").style.display = "none";
+  };
+
+  function showApp() {
+    document.getElementById("login").style.display = "none";
+    document.getElementById("registro").style.display = "block";
+    document.getElementById("painel").style.display = "block";
+    document.getElementById("btnSair").style.display = "block";
+    if (isMaster) document.getElementById("adminPanel").style.display = "block";
+    loadOcorrencias();
+  }
+
+  // Upload imagem
+  async function uploadImagem(file) {
+    if (!file) return null;
+    const nome = `${Date.now()}_${file.name}`;
+    const { data, error } = await supabase.storage.from("ocorrencias").upload(nome, file);
+    if (error) { console.error("Erro upload:", error); return null; }
+    const { data: urlData } = supabase.storage.from("ocorrencias").getPublicUrl(nome);
+    return urlData.publicUrl;
+  }
+
+  // Registrar ocorrência
+  document.getElementById("btnSalvar").onclick = async () => {
+    const tipo = document.getElementById("tipo").value;
+    const data = document.getElementById("data").value;
+    const hora = document.getElementById("hora").value;
+    const local = document.getElementById("local").value;
+    const observacao = document.getElementById("observacao").value;
+    const imagem = document.getElementById("imagem").files[0];
+
+    if (!tipo || !data || !hora || !local || !observacao)
+      return alert("Preencha todos os campos!");
+
+    const imagem_url = await uploadImagem(imagem);
+
+    const { error } = await supabase.from("ocorrencias").insert([{
+      usuario_id: currentUser,
+      tipo, data, hora, local, observacao, imagem_url,
+      status: "pendente"
+    }]);
+
+    if (error) {
+      console.error("Erro detalhado Supabase:", error);
+      alert("Erro ao registrar ocorrência:\n" + JSON.stringify(error, null, 2));
+      return;
+    }
+
+    alert("Ocorrência registrada!");
+    loadOcorrencias();
+  };
+
+  // Carregar ocorrências
+  async function loadOcorrencias() {
+    let query = supabase.from("ocorrencias").select("*, usuarios (nome)").order("created_at", { ascending: false });
+    const { data, error } = isMaster ? await query : await query.eq("usuario_id", currentUser);
+    if (error) return console.error(error);
+
+    ocorrenciasCache = data;
+    renderOcorrencias();
+  }
+
+  // Filtro de status
+  document.getElementById("filtroStatus").onchange = renderOcorrencias;
+
+  function renderOcorrencias() {
+    const lista = document.getElementById("listaOcorrencias");
+    lista.innerHTML = "";
+
+    const filtro = document.getElementById("filtroStatus").value;
+    const ocorrenciasFiltradas = ocorrenciasCache.filter(o =>
+      filtro === "todas" ? true : o.status === filtro
+    );
+
+    ocorrenciasFiltradas.forEach(o => {
+      const div = document.createElement("div");
+      div.classList.add("card");
+      div.innerHTML = `
+        <p><strong>Tipo:</strong> ${o.tipo}</p>
+        <p><strong>Data:</strong> ${o.data} - ${o.hora}</p>
+        <p><strong>Local:</strong> ${o.local}</p>
+        <p><strong>Status:</strong> ${o.status}</p>
+        <p><strong>Registrado por:</strong> ${o.usuarios?.nome || "Desconhecido"}</p>
+        <p><strong>Obs:</strong> ${o.observacao}</p>
+        ${o.imagem_url ? `<img src="${o.imagem_url}" />` : ""}
+        ${
+          isMaster && o.status === "pendente"
+            ? `<button onclick="finalizarOcorrencia('${o.id}')">Finalizar Ocorrência</button>`
+            : o.status === "concluída"
+              ? `<p><strong>Concluída em:</strong> ${o.data_conclusao || ""}</p>
+                 ${o.imagem_conclusao_url ? `<img src="${o.imagem_conclusao_url}" />` : ""}`
+              : ""
+        }
+      `;
+      lista.appendChild(div);
+    });
+  }
+
+  // Finalizar ocorrência
+  async function finalizarOcorrencia(id) {
+    const confirmar = confirm("Deseja realmente finalizar esta ocorrência?");
+    if (!confirmar) return;
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.click();
+
+    fileInput.onchange = async () => {
+      const file = fileInput.files[0];
+      const imagem_conclusao_url = await uploadImagem(file);
+      const hoje = new Date().toISOString().split("T")[0];
+
+      const { error } = await supabase
+        .from("ocorrencias")
+        .update({ status: "concluída", data_conclusao: hoje, imagem_conclusao_url })
+        .eq("id", id);
+
+      if (error) {
+        console.error(error);
+        alert("Erro ao finalizar ocorrência.");
+        return;
+      }
+
+      alert("Ocorrência finalizada!");
+      loadOcorrencias();
+    };
+  }
+
+  // PDF com filtro de data
+  document.getElementById("btnPDF").onclick = async () => {
+    const dataInicio = document.getElementById("dataInicio").value;
+    const dataFim = document.getElementById("dataFim").value;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.text("Relatório de Ocorrências", 10, 10);
+
+    let query = supabase.from("ocorrencias").select("*, usuarios(nome)").order("created_at", { ascending: false });
+    if (dataInicio && dataFim)
+      query = query.gte("data", dataInicio).lte("data", dataFim);
+
+    const { data } = await query;
+    let y = 20;
+    data.forEach(o => {
+      doc.text(
+        `Tipo: ${o.tipo} | Local: ${o.local} | Status: ${o.status} | Por: ${o.usuarios?.nome || "N/D"}`,
+        10, y
+      );
+      y += 8;
+      if (y > 280) { doc.addPage(); y = 10; }
+    });
+
+    doc.save("relatorio-ocorrencias.pdf");
+  };
+</script>
+</body>
+</html>
