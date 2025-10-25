@@ -3,37 +3,59 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Registro de Ocorrências - Quintas do Lago</title>
-<link rel="manifest" href="manifest.json">
-<script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("service-worker.js");
-  }
-</script>
+  <title>Registro de Ocorrências + Checklist - Quintas do Lago</title>
+  <link rel="manifest" href="manifest.json">
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js").catch(()=>{});
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; background: #f5f6fa; color: #333; margin: 0; padding: 20px; }
-    h1, h2 { color: #005b99; }
+    h1, h2 { color: #21a498; margin:0; }
     .card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    input, select, textarea, button { width: 100%; margin: 8px 0; padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
+    input, select, textarea, button { width: 100%; margin: 8px 0; padding: 10px; border-radius: 6px; border: 1px solid #ccc; box-sizing:border-box; }
     button { background: #005b99; color: white; font-weight: bold; cursor: pointer; }
+    button.small { width:auto; padding:6px 10px; font-weight:600; }
     button:hover { background: #0077cc; }
-    #painel, #registro { display: none; }
-    img { max-width: 150px; border-radius: 8px; margin-top: 10px; }
+    #painel, #registro, #checklistPage, #masterChecklists { display: none; }
+    img.logo { max-width:160px; border-radius:6px; }
     .admin { border: 2px solid #0077cc; padding: 10px; margin-top: 20px; }
-    .topbar { display: flex; justify-content: space-between; align-items: center; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap:10px; margin-bottom:16px; }
+    .topbar-left { display:flex; align-items:center; gap:12px; }
+    nav.buttons { display:flex; gap:8px; align-items:center; }
     .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
-    .filters input, .filters select { flex: 1; }
+    .filters input, .filters select { flex: 1; min-width:120px; }
+    .item-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+    .item-row .label { flex:1; }
+    .obs { width:100%; margin-top:6px; display:none; }
+    .emoji-btn { font-size:18px; padding:6px 10px; border-radius:6px; border:1px solid #ccc; background:white; cursor:pointer; }
+    .emoji-btn.selected { box-shadow:inset 0 -2px 0 rgba(0,0,0,0.1); background:#e9f7ef; }
+    .section-title { margin-top:8px; margin-bottom:12px; font-weight:700; color:#003d66; }
+    .flex-row { display:flex; gap:8px; align-items:center; }
+    .center { text-align:center; }
+    .muted { color:#666; font-size:0.9em; }
+    pre { background:#fafafa; padding:8px; border-radius:6px; overflow:auto; }
   </style>
 </head>
 <body>
   <div class="topbar">
-    <h1>Registro de Ocorrências</h1>
- <h1><img src="https://reombcvqyieerjomosbn.supabase.co/storage/v1/object/public/Assets/logo.png" alt="Logo" style="max-width:200px;">
-    <button id="btnSair" style="display:none; width:auto; padding:8px 16px;">Sair</button>
+    <div class="topbar-left">
+      <img class="logo" src="https://reombcvqyieerjomosbn.supabase.co/storage/v1/object/public/Assets/logo.png" alt="Logo">
+      <h1>Registro de Ocorrências</h1>
+    </div>
+
+    <nav class="buttons">
+      <button id="btnMenuReg" class="small" style="display:none;">Registro</button>
+      <button id="btnMenuPainel" class="small" style="display:none;">Ocorrências</button>
+      <button id="btnChecklistOpen" class="small" style="display:none;">Checklist</button>
+      <button id="btnSair" class="small" style="display:none;">Sair</button>
+    </nav>
   </div>
 
+  <!-- LOGIN -->
   <div id="login" class="card">
     <h2>Entrar</h2>
     <input type="text" id="loginUser" placeholder="Nome ou telefone" />
@@ -41,6 +63,7 @@
     <button id="btnLogin">Entrar</button>
   </div>
 
+  <!-- REGISTRO DE OCORRÊNCIAS -->
   <div id="registro" class="card">
     <h2>Registrar Ocorrência</h2>
     <select id="tipo">
@@ -59,15 +82,17 @@
     <button id="btnSalvar">Registrar</button>
   </div>
 
+  <!-- PAINEL OCORRÊNCIAS -->
   <div id="painel" class="card">
     <h2>Ocorrências Registradas</h2>
-
     <div class="filters">
       <select id="filtroStatus">
         <option value="todas">Todas</option>
         <option value="pendente">Pendentes</option>
         <option value="concluída">Concluídas</option>
       </select>
+      <input type="text" id="filtroLocal" placeholder="Filtrar por local (opcional)">
+      <button id="btnRefresh" class="small">Atualizar</button>
     </div>
 
     <div id="listaOcorrencias"></div>
@@ -82,16 +107,119 @@
     </div>
   </div>
 
+  <!-- CHECKLIST PAGE -->
+  <div id="checklistPage" class="card">
+    <h2>Checklist de Espaços</h2>
+
+    <div class="section-title">Escolha o espaço</div>
+    <select id="selectEspaco">
+      <option value="">-- selecione --</option>
+      <option>Deck Gourmet</option>
+      <option>Salão de Festas</option>
+      <option>Salão de Jogos</option>
+      <option>Churrasqueira 1</option>
+      <option>Churrasqueira 2</option>
+    </select>
+
+    <div id="itensArea" style="display:none; margin-top:12px;">
+      <div class="section-title">Itens do checklist</div>
+
+      <div id="itemsList"></div>
+
+      <div style="margin-top:12px;">
+        <input type="text" id="novoItemNome" placeholder="Adicionar item (ex: Garfo e faca)" />
+        <button id="btnAddItem" class="small">Adicionar Item</button>
+      </div>
+
+      <div style="margin-top:12px;">
+        <textarea id="observacaoGeral" placeholder="Observação geral (opcional)"></textarea>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button id="btnSalvarChecklist">Salvar Checklist</button>
+        <button id="btnCancelarChecklist" class="small">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MASTER: CHECKLISTS RECEBIDOS -->
+  <div id="masterChecklists" class="card" style="display:none;">
+    <h2>Checklists Recebidos</h2>
+
+    <div class="filters">
+      <select id="filtroEspacoMaster">
+        <option value="todas">Todos os espaços</option>
+        <option>Deck Gourmet</option>
+        <option>Salão de Festas</option>
+        <option>Salão de Jogos</option>
+        <option>Churrasqueira 1</option>
+        <option>Churrasqueira 2</option>
+      </select>
+      <input type="date" id="filtroDataInicioMaster" />
+      <input type="date" id="filtroDataFimMaster" />
+      <button id="btnRefreshMaster" class="small">Filtrar</button>
+    </div>
+
+    <div id="listaChecklistsMaster"></div>
+  </div>
+
 <script>
+  // === Supabase setup (usando suas credenciais fornecidas) ===
   const SUPABASE_URL = "https://uudiqxghmognvkqfmknu.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1ZGlxeGdobW9nbnZrcWZta251Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyMDQ2MjMsImV4cCI6MjA3NTc4MDYyM30.oGj4_C_GUvdK5WEdIl3dWCZzwAUkCf3FTOvEPn0ERBY";
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  // state
   let currentUser = null;
   let isMaster = false;
   let ocorrenciasCache = [];
+  let checklistItems = []; // [{id, name, ok:null/true/false, obs:''}]
+  let checklistsCache = [];
 
-  // Login
+  // ---------- NAV / UI helpers ----------
+  const show = (id) => {
+    ['login','registro','painel','checklistPage','masterChecklists'].forEach(i=>{
+      document.getElementById(i).style.display = (i===id) ? 'block' : 'none';
+    });
+  };
+  const showMenuButtons = () => {
+    document.getElementById('btnMenuReg').style.display = 'inline-block';
+    document.getElementById('btnMenuPainel').style.display = 'inline-block';
+    document.getElementById('btnChecklistOpen').style.display = 'inline-block';
+    document.getElementById('btnSair').style.display = 'inline-block';
+    if (isMaster) {
+      document.getElementById('adminPanel').style.display = 'block';
+      document.getElementById('masterChecklists').style.display = 'block';
+    } else {
+      document.getElementById('adminPanel').style.display = 'none';
+      document.getElementById('masterChecklists').style.display = 'none';
+    }
+  };
+
+  // Buttons nav
+  document.getElementById('btnMenuReg').onclick = ()=> { show('registro'); };
+  document.getElementById('btnMenuPainel').onclick = ()=> { show('painel'); loadOcorrencias(); };
+  // Botão "Checklist" com comportamento diferente para Master
+document.getElementById('btnChecklistOpen').onclick = async () => {
+  if (isMaster) {
+    show('masterChecklists');
+    await loadChecklistsMaster();
+  } else {
+    show('checklistPage');
+  }
+};
+
+  document.getElementById('btnSair').onclick = () => {
+    currentUser = null; isMaster = false;
+    document.getElementById('btnMenuReg').style.display = 'none';
+    document.getElementById('btnMenuPainel').style.display = 'none';
+    document.getElementById('btnChecklistOpen').style.display = 'none';
+    document.getElementById('btnSair').style.display = 'none';
+    show('login');
+  };
+
+
+  // ---------- LOGIN ----------
   document.getElementById("btnLogin").onclick = async () => {
     const user = document.getElementById("loginUser").value.trim();
     const pass = document.getElementById("loginPass").value.trim();
@@ -100,7 +228,10 @@
     if (user === "Quintas do Lago" && pass === "12345678") {
       currentUser = "00000000-0000-0000-0000-000000000000";
       isMaster = true;
-      showApp();
+      showMenuButtons();
+      show('painel');
+      loadOcorrencias();
+      loadChecklistsMaster(); // master view
       return;
     }
 
@@ -113,55 +244,44 @@
 
     if (error || !data) return alert("Usuário ou senha inválidos.");
     currentUser = data.id;
-    showApp();
-  };
-
-  // Sair
-  document.getElementById("btnSair").onclick = () => {
-    currentUser = null;
     isMaster = false;
-    document.getElementById("login").style.display = "block";
-    document.getElementById("registro").style.display = "none";
-    document.getElementById("painel").style.display = "none";
-    document.getElementById("btnSair").style.display = "none";
+    showMenuButtons();
+    show('painel');
+    loadOcorrencias();
   };
 
-  function showApp() {
-    document.getElementById("login").style.display = "none";
-    document.getElementById("registro").style.display = "block";
-    document.getElementById("painel").style.display = "block";
-    document.getElementById("btnSair").style.display = "block";
-    if (isMaster) document.getElementById("adminPanel").style.display = "block";
-    loadOcorrencias();
-  }
-
-  // Upload imagem
+  // ---------- UPLOAD IMAGE ----------
   async function uploadImagem(file) {
     if (!file) return null;
-    const nome = `${Date.now()}_${file.name}`;
-    const { data, error } = await supabase.storage.from("ocorrencias").upload(nome, file);
-    if (error) { console.error("Erro upload:", error); return null; }
-    const { data: urlData } = supabase.storage.from("ocorrencias").getPublicUrl(nome);
-    return urlData.publicUrl;
+    try {
+      const nome = `${Date.now()}_${file.name}`;
+      const { data, error } = await supabase.storage.from("ocorrencias").upload(nome, file);
+      if (error) { console.error("Erro upload:", error); return null; }
+      const { data: urlData } = supabase.storage.from("ocorrencias").getPublicUrl(nome);
+      return urlData.publicUrl;
+    } catch(e) {
+      console.error(e);
+      return null;
+    }
   }
 
-  // Registrar ocorrência
+  // ---------- REGISTRAR OCORRÊNCIA (mantém seu fluxo) ----------
   document.getElementById("btnSalvar").onclick = async () => {
     const tipo = document.getElementById("tipo").value;
-    const data = document.getElementById("data").value;
+    const dataV = document.getElementById("data").value;
     const hora = document.getElementById("hora").value;
     const local = document.getElementById("local").value;
     const observacao = document.getElementById("observacao").value;
     const imagem = document.getElementById("imagem").files[0];
 
-    if (!tipo || !data || !hora || !local || !observacao)
+    if (!tipo || !dataV || !hora || !local || !observacao)
       return alert("Preencha todos os campos!");
 
     const imagem_url = await uploadImagem(imagem);
 
     const { error } = await supabase.from("ocorrencias").insert([{
       usuario_id: currentUser,
-      tipo, data, hora, local, observacao, imagem_url,
+      tipo, data: dataV, hora, local, observacao, imagem_url,
       status: "pendente"
     }]);
 
@@ -173,28 +293,33 @@
 
     alert("Ocorrência registrada!");
     loadOcorrencias();
+    show('painel');
   };
 
-  // Carregar ocorrências
+  // ---------- LOAD OCORRÊNCIAS ----------
   async function loadOcorrencias() {
     let query = supabase.from("ocorrencias").select("*, usuarios (nome)").order("created_at", { ascending: false });
-    const { data, error } = isMaster ? await query : await query.eq("usuario_id", currentUser);
+    const filtroLocal = document.getElementById('filtroLocal').value.trim();
+    if (!isMaster) {
+      query = query.eq("usuario_id", currentUser);
+    }
+    const { data, error } = await query;
     if (error) return console.error(error);
-
     ocorrenciasCache = data;
     renderOcorrencias();
   }
 
-  // Filtro de status
-  document.getElementById("filtroStatus").onchange = renderOcorrencias;
+  document.getElementById('btnRefresh').onclick = loadOcorrencias;
+  document.getElementById('filtroStatus').onchange = renderOcorrencias;
 
   function renderOcorrencias() {
     const lista = document.getElementById("listaOcorrencias");
     lista.innerHTML = "";
-
     const filtro = document.getElementById("filtroStatus").value;
+    const filtroLocal = document.getElementById('filtroLocal').value.trim().toLowerCase();
     const ocorrenciasFiltradas = ocorrenciasCache.filter(o =>
-      filtro === "todas" ? true : o.status === filtro
+      (filtro === "todas" ? true : o.status === filtro)
+      && (!filtroLocal || (o.local || '').toLowerCase().includes(filtroLocal))
     );
 
     ocorrenciasFiltradas.forEach(o => {
@@ -210,7 +335,7 @@
         ${o.imagem_url ? `<img src="${o.imagem_url}" />` : ""}
         ${
           isMaster && o.status === "pendente"
-            ? `<button onclick="finalizarOcorrencia('${o.id}')">Finalizar Ocorrência</button>`
+            ? `<div style="margin-top:8px;"><button onclick="finalizarOcorrencia('${o.id}')" class="small">Finalizar Ocorrência</button></div>`
             : o.status === "concluída"
               ? `<p><strong>Concluída em:</strong> ${o.data_conclusao || ""}</p>
                  ${o.imagem_conclusao_url ? `<img src="${o.imagem_conclusao_url}" />` : ""}`
@@ -221,7 +346,7 @@
     });
   }
 
-  // Finalizar ocorrência
+  // ---------- FINALIZAR ----------
   async function finalizarOcorrencia(id) {
     const confirmar = confirm("Deseja realmente finalizar esta ocorrência?");
     if (!confirmar) return;
@@ -252,32 +377,384 @@
     };
   }
 
-  // PDF com filtro de data
-  document.getElementById("btnPDF").onclick = async () => {
-    const dataInicio = document.getElementById("dataInicio").value;
-    const dataFim = document.getElementById("dataFim").value;
+  // ---------- CHECKLIST: UI helpers ----------
+  const espacosDisponiveis = ["Deck Gourmet","Salão de Festas","Salão de Jogos","Churrasqueira 1","Churrasqueira 2"];
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.text("Relatório de Ocorrências", 10, 10);
+const itensFixosPorEspaco = {
+  "SALÃO DE JOGOS": [
+    "06 POLTRONAS",
+    "01 MESA DE CENTRO COM CORDÃO ARTESANAL",
+    "03 MESAS DE CANTOS",
+    "2 LUMINÁRIAS",
+    "01 MESA DE POKER + 06 CADEIRAS",
+    "01 MESA DE SINUCA",
+    "16 BOLAS DE SINUCA + 04 TACOS",
+    "01 TV + VIDEO GAME + 02 CONTROLES",
+    "01 SAPATO",
+    "03 VASOS DE CERA",
+    "02 ESCULTURAS ARTESANAIS",
+    "01 FRIGOBAR",
+    "01 LIXEIRA INOX"
+  ],
+  "SALÃO DE FESTAS": [
+    "06 MESAS COM 4 CADEIRAS",
+    "02 MESAS COM 5 CADEIRAS",
+    "02 MESAS COM 3 CADEIRAS",
+    "02 SOFÁS DE 4 LUGARES COM 4 ALMOFADAS",
+    "02 MESAS DE CANTO",
+    "06 CADEIRAS DE BANCADA",
+    "02 MESAS APARADOR",
+    "01 LIVRO ARTESANAL",
+    "01 ESCULTURAS BARRO",
+    "01 CESTO DE PALHA",
+    "01 PEÇA DECORATIVA ARTESANAL",
+    "02 VASOS DE CERA BEGE",
+    "02 VASOS PORCELANAS",
+    "01 KIT ARTESANAL VASO MAIS PEÇA DECORATIVA",
+    "04 VASOS DECORATIVO BARRO",
+    "01 PEÇA DECORATIVA MADEIRA",
+    "01 CHOPEIRA",
+    "01 ADEGA",
+    "01 FRIGOBAR",
+    "01 FOGÃO POR INDUÇÃO",
+    "01 JOGO DE PANELAS 5 UNIDADES (INDUÇÃO)",
+    "02 LIXEIRA INOX",
+    "01 FOGÃO A GÁS"
+  ],
+  "DECK GOURMET": [
+    "04 MESAS COM 5 CADEIRAS",
+    "01 BANCADA COM 8 CADEIRAS",
+    "01 FOGÃO POR INDUÇÃO",
+    "01 KIT CHURRASCO COM 2 ESPETOS E 2 GARFOS",
+    "02 FREEZER VERTICAL",
+    "02 PEÇAS DECORATIVAS DE MADEIRA",
+    "01 ESCULTURA POLIRESINA PEIXE",
+    "01 CESTO CAPIM DOURADO COM 9 ESCULTURAS DE COCO",
+    "01 JOGO DE PANELA 5 UNIDADES (INDUÇÃO)",
+    "01 TABUA PARA CHURRASCO",
+    "01 LIXEIRA INOX",
+    "01 SUPERZON"
+  ],
+  "CHURRASQUEIRA 1": [
+    "03 MESAS COM 5 CADEIRAS",
+    "01 GRELHA + 05 ESPETOS",
+    "01 TÁBUA CHURRASCO",
+    "06 JARROS",
+    "03 QUADROS",
+    "01 FREEZER VERTICAL",
+    "01 SUPERZON"
+  ],
+  "CHURRASQUEIRA 2": [
+    "05 MESAS COM 4 CADEIRAS",
+    "01 GRELHA + 05 ESPETOS",
+    "01 TÁBUA CHURRASCO",
+    "06 JARROS",
+    "03 QUADROS",
+    "01 FREEZER VERTICAL",
+    "01 SUPERZON"
+  ]
+};
 
-    let query = supabase.from("ocorrencias").select("*, usuarios(nome)").order("created_at", { ascending: false });
-    if (dataInicio && dataFim)
-      query = query.gte("data", dataInicio).lte("data", dataFim);
+document.getElementById('selectEspaco').onchange = () => {
+  const esp = document.getElementById('selectEspaco').value;
+  checklistItems = [];
+  document.getElementById('itemsList').innerHTML = '';
+  document.getElementById('observacaoGeral').value = '';
 
-    const { data } = await query;
-    let y = 20;
-    data.forEach(o => {
-      doc.text(
-        `Tipo: ${o.tipo} | Local: ${o.local} | Status: ${o.status} | Por: ${o.usuarios?.nome || "N/D"}`,
-        10, y
-      );
-      y += 8;
-      if (y > 280) { doc.addPage(); y = 10; }
+  if (esp) {
+    document.getElementById('itensArea').style.display = 'block';
+    
+    // Adicionar itens fixos automaticamente
+    const itensFixos = itensFixosPorEspaco[esp.toUpperCase()] || [];
+    itensFixos.forEach(itemNome => addItemToList(itemNome));
+    
+  } else {
+    document.getElementById('itensArea').style.display = 'none';
+  }
+};
+
+
+  // Add item to checklistItems and render
+  function addItemToList(name) {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    const item = { id, name, ok: null, obs: '' };
+    checklistItems.push(item);
+    renderChecklistItems();
+  }
+
+  document.getElementById('btnAddItem').onclick = () => {
+    const v = document.getElementById('novoItemNome').value.trim();
+    if (!v) return alert("Informe o nome do item.");
+    addItemToList(v);
+    document.getElementById('novoItemNome').value = '';
+  };
+
+  function renderChecklistItems() {
+    const list = document.getElementById('itemsList');
+    list.innerHTML = '';
+    checklistItems.forEach(it => {
+      const row = document.createElement('div');
+      row.className = 'card';
+      row.style.marginBottom = '8px';
+      row.innerHTML = `
+        <div class="item-row">
+          <div class="label">${it.name}</div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button class="emoji-btn" data-id="${it.id}" data-val="true">✅</button>
+            <button class="emoji-btn" data-id="${it.id}" data-val="false">❌</button>
+          </div>
+        </div>
+        <textarea class="obs" id="obs-${it.id}" placeholder="Observação (aparecerá se marcado ❌)">${it.obs || ''}</textarea>
+      `;
+      list.appendChild(row);
+
+      // attach events
+      const yesBtn = row.querySelector(`button[data-val="true"]`);
+      const noBtn = row.querySelector(`button[data-val="false"]`);
+      const obsEl = row.querySelector(`#obs-${it.id}`);
+
+      // set current selection visual
+      if (it.ok === true) {
+        yesBtn.classList.add('selected');
+        noBtn.classList.remove('selected');
+        obsEl.style.display = 'none';
+      } else if (it.ok === false) {
+        noBtn.classList.add('selected');
+        yesBtn.classList.remove('selected');
+        obsEl.style.display = 'block';
+      } else {
+        yesBtn.classList.remove('selected');
+        noBtn.classList.remove('selected');
+        obsEl.style.display = 'none';
+      }
+
+      yesBtn.onclick = () => {
+        it.ok = true;
+        it.obs = '';
+        renderChecklistItems();
+      };
+      noBtn.onclick = () => {
+        it.ok = false;
+        renderChecklistItems();
+        // show obs field for this item so user can type
+        setTimeout(()=> {
+          const field = document.getElementById(`obs-${it.id}`);
+          if (field) {
+            field.style.display = 'block';
+            field.focus();
+            field.oninput = (e)=> it.obs = e.target.value;
+          }
+        },50);
+      };
+
+      // bind oninput
+      obsEl.oninput = (e) => {
+        it.obs = e.target.value;
+      };
+    });
+  }
+
+  document.getElementById('btnCancelarChecklist').onclick = () => {
+    // clear and go back to painel
+    checklistItems = [];
+    document.getElementById('selectEspaco').value = '';
+    document.getElementById('itensArea').style.display = 'none';
+    show('painel');
+  };
+
+  // ---------- SAVE CHECKLIST to Supabase ----------
+  document.getElementById('btnSalvarChecklist').onclick = async () => {
+    const esp = document.getElementById('selectEspaco').value;
+    if (!esp) return alert("Selecione o espaço.");
+
+    if (checklistItems.length === 0) {
+      if (!confirm("Nenhum item adicionado. Deseja salvar um checklist vazio?")) return;
+    }
+
+    // transform items to object: { "item name": { ok: true/false/null, obs: "..." }, ... }
+    const itensObj = {};
+    checklistItems.forEach(it => {
+      itensObj[it.name] = { ok: it.ok === true, problem: it.ok === false, obs: it.obs || '' };
     });
 
-    doc.save("relatorio-ocorrencias.pdf");
+    const payload = {
+      usuario_id: currentUser,
+      espaco: esp,
+      itens: itensObj,
+      data: new Date().toISOString(),
+      status: "finalizado",
+      observacao_geral: document.getElementById('observacaoGeral').value || null
+    };
+
+    const { error } = await supabase.from('checklists').insert([payload]);
+    if (error) {
+      console.error("Erro ao salvar checklist:", error);
+      alert("Erro ao salvar checklist: " + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    alert("Checklist salvo com sucesso!");
+    // clear form
+    checklistItems = [];
+    document.getElementById('selectEspaco').value = '';
+    document.getElementById('itensArea').style.display = 'none';
+    document.getElementById('observacaoGeral').value = '';
+    // if master view visible, refresh master list
+    if (isMaster) loadChecklistsMaster();
+    show('painel');
   };
+
+  // ---------- MASTER: load checklists ----------
+  async function loadChecklistsMaster() {
+    // only for master
+    if (!isMaster) return;
+    // basic load
+    const { data, error } = await supabase.from('checklists').select('*, usuarios (nome)').order('created_at', { ascending: false });
+    if (error) return console.error("Erro ao carregar checklists:", error);
+    checklistsCache = data;
+    renderMasterChecklists();
+  }
+
+async function showMasterChecklistPanel() {
+  const checklistArea = document.getElementById('checklistArea');
+  checklistArea.innerHTML = `
+    <h2>Supervisão de Checklists</h2>
+
+    <div class="filtrosMaster">
+      <label>Espaço:</label>
+      <select id="filtroEspaco">
+        <option value="">Todos</option>
+        <option>SALÃO DE JOGOS</option>
+        <option>SALÃO DE FESTAS</option>
+        <option>DECK GOURMET</option>
+        <option>CHURRASQUEIRA 1</option>
+        <option>CHURRASQUEIRA 2</option>
+      </select>
+
+      <label>Usuário:</label>
+      <input type="text" id="filtroUsuario" placeholder="Nome do usuário...">
+
+      <label>Data:</label>
+      <input type="date" id="filtroData">
+
+      <button id="btnFiltrarChecklists">Filtrar</button>
+    </div>
+
+    <div id="listaChecklistsMaster" class="lista-checklists"></div>
+  `;
+
+  // Carrega checklists na primeira exibição
+  await loadChecklistsMaster();
+
+  // Evento de filtro
+  document.getElementById('btnFiltrarChecklists').onclick = async () => {
+    const espaco = document.getElementById('filtroEspaco').value;
+    const usuario = document.getElementById('filtroUsuario').value.trim();
+    const data = document.getElementById('filtroData').value;
+
+    let query = supabase
+      .from('checklists')
+      .select('*, usuarios (nome)')
+      .order('created_at', { ascending: false });
+
+    if (espaco) query = query.eq('espaco', espaco);
+    if (usuario) query = query.ilike('usuarios.nome', `%${usuario}%`);
+    if (data) query = query.eq('data', data);
+
+    const { data: results, error } = await query;
+    if (error) {
+      console.error(error);
+      return alert("Erro ao filtrar checklists");
+    }
+
+    renderMasterChecklists(results);
+  };
+}
+
+
+  document.getElementById('btnRefreshMaster').onclick = loadChecklistsMaster;
+
+function renderMasterChecklists(data = checklistsCache) {
+  const container = document.getElementById('listaChecklistsMaster');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!data || data.length === 0) {
+    container.innerHTML = '<p>Nenhum checklist encontrado.</p>';
+    return;
+  }
+
+  data.forEach((item, index) => {
+    // Corrige o horário para o fuso de Brasília
+    const dataLocal = new Date(item.data);
+    const dataFormatada = dataLocal.toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const itensLista = Object.entries(item.itens || {})
+      .map(([nome, v]) => `${v.ok ? '✅' : '❌'} ${nome}${v.obs ? ' - ' + v.obs : ''}`)
+      .join('<br>');
+
+    // Cria o card do checklist
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.style.cursor = 'pointer';
+    div.style.marginBottom = '10px';
+    div.style.border = '1px solid #ddd';
+    div.style.borderRadius = '10px';
+    div.style.padding = '10px';
+    div.style.backgroundColor = '#fafafa';
+    div.style.transition = 'background-color 0.2s ease';
+
+    // Cabeçalho do card com seta
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3 style="margin:0;">${item.espaco}</h3>
+          <p style="margin:2px 0;"><strong>Data:</strong> ${dataFormatada}</p>
+          <p style="margin:2px 0;"><strong>Usuário:</strong> ${item.usuarios?.nome || '—'}</p>
+        </div>
+        <span id="seta-${index}" style="font-size:18px;">⯈</span>
+      </div>
+      <div id="detalhes-${index}" style="display:none; margin-top:8px; border-top:1px solid #eee; padding-top:6px;">
+        <div><strong>Itens:</strong><br>${itensLista}</div>
+        ${item.observacao_geral ? `<p><strong>Observação geral:</strong> ${item.observacao_geral}</p>` : ''}
+      </div>
+    `;
+
+    // Efeito hover leve
+    div.addEventListener('mouseenter', () => (div.style.backgroundColor = '#f0f0f0'));
+    div.addEventListener('mouseleave', () => (div.style.backgroundColor = '#fafafa'));
+
+    // Toggle (expandir/recolher + muda seta)
+    div.addEventListener('click', () => {
+      const detalhes = document.getElementById(`detalhes-${index}`);
+      const seta = document.getElementById(`seta-${index}`);
+      const aberto = detalhes.style.display === 'block';
+      detalhes.style.display = aberto ? 'none' : 'block';
+      seta.textContent = aberto ? '⯈' : '⯆';
+    });
+
+    container.appendChild(div);
+  });
+}
+
+
+
+  // ---------- Init: show login ----------
+  show('login');
+
+  // Optional: expose some functions to window for debugging
+  window.loadOcorrencias = loadOcorrencias;
+  window.loadChecklistsMaster = loadChecklistsMaster;
+
+  // If user is master and on load, show menu (handy for development)
+  // showMenuButtons(); // will be toggled after login
 </script>
 </body>
 </html>
