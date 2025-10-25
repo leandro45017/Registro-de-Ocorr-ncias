@@ -3,8 +3,8 @@
   "short_name": "Ocorrências",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#005b99",
-  "theme_color": "#005b99",
+  "background_color": "#21A498",
+  "theme_color": "#21A498",
   "orientation": "portrait",
   "icons": [
     {
@@ -18,4 +18,5 @@
       "type": "image/png"
     }
   ]
+
 }
