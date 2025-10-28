@@ -220,35 +220,60 @@ document.getElementById('btnChecklistOpen').onclick = async () => {
 
 
   // ---------- LOGIN ----------
-  document.getElementById("btnLogin").onclick = async () => {
-    const user = document.getElementById("loginUser").value.trim();
-    const pass = document.getElementById("loginPass").value.trim();
-    if (!user || !pass) return alert("Preencha os campos.");
+  // Login
+document.getElementById("btnLogin").onclick = async () => {
+  const user = document.getElementById("loginUser").value.trim();
+  const pass = document.getElementById("loginPass").value.trim();
+  if (!user || !pass) return alert("Preencha os campos.");
 
-    if (user === "Quintas do Lago" && pass === "12345678") {
-      currentUser = "00000000-0000-0000-0000-000000000000";
-      isMaster = true;
-      showMenuButtons();
-      show('painel');
-      loadOcorrencias();
-      loadChecklistsMaster(); // master view
-      return;
-    }
+  // Login master
+  if (user === "Quintas do Lago" && pass === "12345678") {
+    currentUser = "00000000-0000-0000-0000-000000000000";
+    isMaster = true;
+    showApp();
+    return;
+  }
 
-    const { data, error } = await supabase
+  // Tenta localizar o usuário por nome OU telefone
+  const { data: existingUser, error: findError } = await supabase
+    .from("usuarios")
+    .select("*")
+    .or(`nome.eq.${user},telefone.eq.${user}`)
+    .single();
+
+  if (findError && findError.code !== "PGRST116") {
+    console.error("Erro ao buscar usuário:", findError);
+    return alert("Erro ao verificar usuário.");
+  }
+
+  // Se não existir, cria automaticamente
+  if (!existingUser) {
+    const { data: newUser, error: insertError } = await supabase
       .from("usuarios")
-      .select("*")
-      .or(`nome.eq.${user},telefone.eq.${user}`)
-      .eq("senha", pass)
+      .insert([{ nome: user, telefone: user, senha: pass }])
+      .select()
       .single();
 
-    if (error || !data) return alert("Usuário ou senha inválidos.");
-    currentUser = data.id;
-    isMaster = false;
-    showMenuButtons();
-    show('painel');
-    loadOcorrencias();
-  };
+    if (insertError) {
+      console.error("Erro ao criar usuário:", insertError);
+      return alert("Erro ao criar novo usuário.");
+    }
+
+    alert("Usuário criado com sucesso!");
+    currentUser = newUser.id;
+    showApp();
+    return;
+  }
+
+  // Se existir, verifica a senha
+  if (existingUser.senha !== pass) {
+    return alert("Senha incorreta!");
+  }
+
+  currentUser = existingUser.id;
+  showApp();
+};
+
 
   // ---------- UPLOAD IMAGE ----------
   async function uploadImagem(file) {
@@ -758,6 +783,7 @@ function renderMasterChecklists(data = checklistsCache) {
 </script>
 </body>
 </html>
+
 
 
 
