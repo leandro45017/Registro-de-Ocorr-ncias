@@ -14,18 +14,19 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; background: #f5f6fa; color: #333; margin: 0; padding: 20px; }
-    h1, h2, h3 { color: black; margin:0; }
+    h1, h2 { color: #21a498; margin:0; }
     .card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     input, select, textarea, button { width: 100%; margin: 8px 0; padding: 10px; border-radius: 6px; border: 1px solid #ccc; box-sizing:border-box; }
-    button { background: #21a498; color: #B0E0E6; font-weight: bold; cursor: pointer; }
+    button { background: #21a498; color: white; font-weight: bold; cursor: pointer; }
     button.small { width:auto; padding:6px 10px; font-weight:600; }
     button:hover { background: #0077cc; }
     #painel, #registro, #checklistPage, #masterChecklists { display: none; }
     img.logo { max-width:160px; border-radius:6px; }
     .admin { border: 2px solid #0077cc; padding: 10px; margin-top: 20px; }
     .topbar { display: flex; justify-content: space-between; align-items: center; gap:10px; margin-bottom:16px; }
-    .topbar-left { display:flex; align-items:center; gap:12px; }
-    nav.buttons { display:flex; gap:8px; align-items:center; }
+    .topbar-left { display:flex; flex-direction: column; align-items:center; gap:12px; }
+    nav.buttons { display:flex; justify-content: center; gap:8px; align-items:center; flex-wrap: wrap;  }
+	button.small { min-width: 100px;        /* tamanho mínimo para consistência */}
     .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
     .filters input, .filters select { flex: 1; min-width:120px; }
     .item-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
@@ -42,10 +43,10 @@
 </head>
 <body>
   <div class="topbar">
-    <div class="topbar-left">
+    <div class="topbar-left center">
       <img class="logo" src="https://reombcvqyieerjomosbn.supabase.co/storage/v1/object/public/Assets/logo.png" alt="Logo">
       <h1>Registro de Ocorrências</h1>
-    </div>
+    
 
     <nav class="buttons">
       <button id="btnMenuReg" class="small" style="display:none;">Registro</button>
@@ -54,6 +55,7 @@
       <button id="btnSair" class="small" style="display:none;">Sair</button>
     </nav>
   </div>
+ </div>
 
   <!-- LOGIN -->
   <div id="login" class="card">
@@ -61,6 +63,7 @@
     <input type="text" id="loginUser" placeholder="Nome ou telefone" />
     <input type="password" id="loginPass" placeholder="Senha" />
     <button id="btnLogin">Entrar</button>
+	<button id="btnCadastrar" class="small" style="background:#ffa500; margin-top:8px;">Cadastrar</button>
   </div>
 
   <!-- REGISTRO DE OCORRÊNCIAS -->
@@ -220,60 +223,35 @@ document.getElementById('btnChecklistOpen').onclick = async () => {
 
 
   // ---------- LOGIN ----------
-  // Login
-document.getElementById("btnLogin").onclick = async () => {
-  const user = document.getElementById("loginUser").value.trim();
-  const pass = document.getElementById("loginPass").value.trim();
-  if (!user || !pass) return alert("Preencha os campos.");
+  document.getElementById("btnLogin").onclick = async () => {
+    const user = document.getElementById("loginUser").value.trim();
+    const pass = document.getElementById("loginPass").value.trim();
+    if (!user || !pass) return alert("Preencha os campos.");
 
-  // Login master
-  if (user === "Quintas do Lago" && pass === "12345678") {
-    currentUser = "00000000-0000-0000-0000-000000000000";
-    isMaster = true;
-   showMenuButtons();
-    return;
-  }
-
-  // Tenta localizar o usuário por nome OU telefone
-  const { data: existingUser, error: findError } = await supabase
-    .from("usuarios")
-    .select("*")
-    .or(`nome.eq.${user},telefone.eq.${user}`)
-    .single();
-
-  if (findError && findError.code !== "PGRST116") {
-    console.error("Erro ao buscar usuário:", findError);
-    return alert("Erro ao verificar usuário.");
-  }
-
-  // Se não existir, cria automaticamente
-  if (!existingUser) {
-    const { data: newUser, error: insertError } = await supabase
-      .from("usuarios")
-      .insert([{ nome: user, telefone: user, senha: pass }])
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error("Erro ao criar usuário:", insertError);
-      return alert("Erro ao criar novo usuário.");
+    if (user === "Quintas do Lago" && pass === "12345678") {
+      currentUser = "00000000-0000-0000-0000-000000000000";
+      isMaster = true;
+      showMenuButtons();
+      show('painel');
+      loadOcorrencias();
+      loadChecklistsMaster(); // master view
+      return;
     }
 
-    alert("Usuário criado com sucesso!");
-    currentUser = newUser.id;
-   showMenuButtons();
-    return;
-  }
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select("*")
+      .or(`nome.eq.${user},telefone.eq.${user}`)
+      .eq("senha", pass)
+      .single();
 
-  // Se existir, verifica a senha
-  if (existingUser.senha !== pass) {
-    return alert("Senha incorreta!");
-  }
-
-  currentUser = existingUser.id;
-  showMenuButtons();
-};
-
+    if (error || !data) return alert("Usuário ou senha inválidos.");
+    currentUser = data.id;
+    isMaster = false;
+    showMenuButtons();
+    show('painel');
+    loadOcorrencias();
+  };
 
   // ---------- UPLOAD IMAGE ----------
   async function uploadImagem(file) {
@@ -770,6 +748,36 @@ function renderMasterChecklists(data = checklistsCache) {
 }
 
 
+document.getElementById('btnCadastrar').onclick = async () => {
+  const nome = prompt("Digite seu nome completo:");
+  if (!nome) return alert("Nome obrigatório.");
+
+  const telefone = prompt("Digite seu telefone:");
+  if (!telefone) return alert("Telefone obrigatório.");
+
+  const senha = prompt("Digite uma senha:");
+  if (!senha) return alert("Senha obrigatória.");
+
+  // verificar se já existe usuário com o mesmo nome ou telefone
+  const { data: existing, error: checkError } = await supabase
+    .from("usuarios")
+    .select("*")
+    .or(`nome.eq.${nome},telefone.eq.${telefone}`)
+    .limit(1);
+
+  if (checkError) return alert("Erro ao verificar usuário: " + checkError.message);
+  if (existing.length > 0) return alert("Já existe um usuário com esse nome ou telefone.");
+
+  // inserir no Supabase
+  const { data, error } = await supabase
+    .from("usuarios")
+    .insert([{ nome, telefone, senha }]);
+
+  if (error) return alert("Erro ao cadastrar: " + error.message);
+
+  alert("Cadastro realizado com sucesso! Agora você pode fazer login.");
+};
+
 
   // ---------- Init: show login ----------
   show('login');
@@ -783,13 +791,3 @@ function renderMasterChecklists(data = checklistsCache) {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
