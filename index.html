@@ -261,7 +261,7 @@ document.getElementById("btnLogin").onclick = async () => {
 
     alert("Usuário criado com sucesso!");
     currentUser = newUser.id;
-    showApp();
+    show('painel');
     return;
   }
 
@@ -271,7 +271,7 @@ document.getElementById("btnLogin").onclick = async () => {
   }
 
   currentUser = existingUser.id;
-  showApp();
+  show('painel');
 };
 
 
@@ -783,6 +783,7 @@ function renderMasterChecklists(data = checklistsCache) {
 </script>
 </body>
 </html>
+
 
 
 
