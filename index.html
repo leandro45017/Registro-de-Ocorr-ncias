@@ -230,7 +230,7 @@ document.getElementById("btnLogin").onclick = async () => {
   if (user === "Quintas do Lago" && pass === "12345678") {
     currentUser = "00000000-0000-0000-0000-000000000000";
     isMaster = true;
-    show('buttons');
+    showapp();
     return;
   }
 
@@ -261,7 +261,7 @@ document.getElementById("btnLogin").onclick = async () => {
 
     alert("Usuário criado com sucesso!");
     currentUser = newUser.id;
-    show('buttons');
+    showapp();
     return;
   }
 
@@ -271,7 +271,7 @@ document.getElementById("btnLogin").onclick = async () => {
   }
 
   currentUser = existingUser.id;
-  show('buttons');
+  showapp();
 };
 
 
@@ -783,6 +783,7 @@ function renderMasterChecklists(data = checklistsCache) {
 </script>
 </body>
 </html>
+
 
 
 
