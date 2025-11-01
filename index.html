@@ -230,7 +230,7 @@ document.getElementById("btnLogin").onclick = async () => {
   if (user === "Quintas do Lago" && pass === "12345678") {
     currentUser = "00000000-0000-0000-0000-000000000000";
     isMaster = true;
-    showApp();
+    show('painel');
     return;
   }
 
@@ -783,6 +783,7 @@ function renderMasterChecklists(data = checklistsCache) {
 </script>
 </body>
 </html>
+
 
 
 
