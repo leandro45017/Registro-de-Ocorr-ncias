@@ -32,9 +32,49 @@
     .item-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
     .item-row .label { flex:1; }
     .obs { width:100%; margin-top:6px; display:none; }
-    .emoji-btn { font-size:18px; padding:6px 10px; border-radius:6px; border:1px solid #ccc; background:white; cursor:pointer; }
-    .emoji-btn.selected { box-shadow:inset 0 -2px 0 rgba(0,0,0,0.1); background:#e9f7ef; }
-    .section-title { margin-top:8px; margin-bottom:12px; font-weight:700; color:#003d66; }
+    .emoji-btn {
+  font-size: 20px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 2px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* efeito ao passar o mouse */
+.emoji-btn:hover {
+  transform: scale(1.1);
+  background-color: #f0f0f0;
+}
+
+/* botão ✅ selecionado */
+.emoji-btn.selected[data-val="true"] {
+  background-color: #21a36a;
+  color: #fff;
+  border-color: #1b8c5a;
+  box-shadow: 0 0 6px rgba(33, 163, 106, 0.6);
+  transform: scale(1.05);
+}
+
+/* botão ❌ selecionado */
+.emoji-btn.selected[data-val="false"] {
+  background-color: #d64545;
+  color: #fff;
+  border-color: #a83232;
+  box-shadow: 0 0 6px rgba(214, 69, 69, 0.6);
+  transform: scale(1.05);
+}
+
+/* título da seção */
+.section-title {
+  margin-top: 8px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  color: #003d66;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
     .flex-row { display:flex; gap:8px; align-items:center; }
     .center { text-align:center; }
     .muted { color:#666; font-size:0.9em; }
@@ -818,6 +858,7 @@ document.getElementById('btnCadastrar').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
