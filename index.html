@@ -604,14 +604,13 @@ document.getElementById('selectEspaco').onchange = () => {
       itensObj[it.name] = { ok: it.ok === true, problem: it.ok === false, obs: it.obs || '' };
     });
 
-const agora = new Date();
-const dataISOlocal = new Date(agora.getTime() - agora.getTimezoneOffset() * 60000).toISOString();
+
 	  
     const payload = {
       usuario_id: currentUser,
       espaco: esp,
       itens: itensObj,
-      data:  dataISOlocal ,
+      data:  new Date(agora.getTime() - agora.getTimezoneOffset() * 60000).toISOString(),
       status: "finalizado",
       observacao_geral: document.getElementById('observacaoGeral').value || null
     };
@@ -818,6 +817,7 @@ document.getElementById('btnCadastrar').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
