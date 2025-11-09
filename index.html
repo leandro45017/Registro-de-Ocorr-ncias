@@ -605,14 +605,13 @@ document.getElementById('selectEspaco').onchange = () => {
     });
 
 
-	  
+	  const agora = new Date();
+	const dataISO = new Date(agora.getTime() - 3 * 60 * 60 * 1000).toISOString();
     const payload = {
       usuario_id: currentUser,
       espaco: esp,
       itens: itensObj,
-    const agora = new Date();
-const dataISO = new Date(agora.getTime() - 3 * 60 * 60 * 1000).toISOString();
-data: dataISO,
+		data: dataISO,
       status: "finalizado",
       observacao_geral: document.getElementById('observacaoGeral').value || null
     };
@@ -819,6 +818,7 @@ document.getElementById('btnCadastrar').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
