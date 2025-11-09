@@ -384,7 +384,9 @@ document.getElementById('btnChecklistOpen').onclick = async () => {
     fileInput.onchange = async () => {
       const file = fileInput.files[0];
       const imagem_conclusao_url = await uploadImagem(file);
-      const hoje = new Date().toISOString().split("T")[0];
+      const agora = new Date();
+const hoje = agora.toISOString().slice(0, 19); // inclui data e hora
+
 
       const { error } = await supabase
         .from("ocorrencias")
@@ -813,5 +815,6 @@ document.getElementById('btnCadastrar').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
