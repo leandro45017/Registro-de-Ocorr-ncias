@@ -604,9 +604,9 @@ document.getElementById('selectEspaco').onchange = () => {
       itensObj[it.name] = { ok: it.ok === true, problem: it.ok === false, obs: it.obs || '' };
     });
 
+	 const agora = new Date();
+const dataISO = agora.toISOString(); // salva com horário real do sistema
 
-	  const agora = new Date();
-	const dataISO = new Date(agora.getTime() - 3 * 60 * 60 * 1000).toISOString();
     const payload = {
       usuario_id: currentUser,
       espaco: esp,
@@ -818,6 +818,7 @@ document.getElementById('btnCadastrar').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
