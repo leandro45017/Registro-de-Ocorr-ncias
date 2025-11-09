@@ -40,14 +40,26 @@
     .muted { color:#666; font-size:0.9em; }
     pre { background:#fafafa; padding:8px; border-radius:6px; overflow:auto; }
 	  /* === Ajuste visual das imagens das ocorrências === */
-img.ocorrencia-img {
-  display: block;
+.card img {
   max-width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* limita o tamanho visual */
+#listaOcorrencias img {
+  max-width: 300px;
   max-height: 200px;
   object-fit: cover;
-  border-radius: 8px;
-  margin-top: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+#listaOcorrencias img:hover {
+  transform: scale(1.05);
 }
   </style>
 </head>
@@ -801,4 +813,5 @@ document.getElementById('btnCadastrar').onclick = async () => {
 </script>
 </body>
 </html>
+
 
