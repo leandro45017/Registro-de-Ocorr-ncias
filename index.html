@@ -608,7 +608,7 @@ document.getElementById('selectEspaco').onchange = () => {
       usuario_id: currentUser,
       espaco: esp,
       itens: itensObj,
-      data: new Date().toISOString().split("T")[0],
+      data: data: new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }).split('/').reverse().join('-'),
       status: "finalizado",
       observacao_geral: document.getElementById('observacaoGeral').value || null
     };
@@ -815,6 +815,7 @@ document.getElementById('btnCadastrar').onclick = async () => {
 </script>
 </body>
 </html>
+
 
 
 
