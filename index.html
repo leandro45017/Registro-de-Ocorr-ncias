@@ -163,7 +163,7 @@
     </div>
 
 <div id="adminPanel" class="admin" style="display:none;">
-      <h3>RELATÓRIOS</h3>
+      <h3>Painel do Master</h3>
       <div class="filters">
         <input type="date" id="dataInicio" />
         <input type="date" id="dataFim" />
@@ -456,7 +456,8 @@ paginaOcorrencias = 1;
         ${o.imagem_url ? `<img src="${o.imagem_url}" />` : ""}
         ${
           isMaster && o.status === "pendente"
-            ? `<div style="margin-top:8px;"><button onclick="finalizarOcorrencia('${o.id}')" class="small">Finalizar Ocorrência</button></div>`
+            ? `<div style="margin-top:8px;">
+<button onclick="finalizarOcorrencia('${o.id}')" class="small">Finalizar Ocorrência</button></div>`
             : o.status === "concluída"
               ? `<p><strong>Concluída em:</strong> ${o.data_conclusao || ""}</p>
                  ${o.imagem_conclusao_url ? `<img src="${o.imagem_conclusao_url}" />` : ""}`
@@ -555,37 +556,70 @@ document.getElementById("btnPDF").onclick = gerarRelatorioPDF;
 
 
   // ---------- FINALIZAR ----------
-  async function finalizarOcorrencia(id) {
-    const confirmar = confirm("Deseja realmente finalizar esta ocorrência?");
-    if (!confirmar) return;
+ async function finalizarOcorrencia(id) {
+  if (!confirm("Deseja realmente finalizar esta ocorrência?")) return;
 
-    const fileInput = document.createElement("input");
-    fileInput.type = "file";
-    fileInput.accept = "image/*";
-    fileInput.click();
+  const querFoto = confirm("Deseja anexar uma foto na conclusão?\n\nOK = Sim\nCancelar = Não");
 
-    fileInput.onchange = async () => {
-      const file = fileInput.files[0];
-      const imagem_conclusao_url = await uploadImagem(file);
-     const hoje = new Date().toISOString().split("T")[0];
-
-
-
-      const { error } = await supabase
-        .from("ocorrencias")
-        .update({ status: "concluída", data_conclusao: hoje, imagem_conclusao_url })
-        .eq("id", id);
-
-      if (error) {
-        console.error(error);
-        alert("Erro ao finalizar ocorrência.");
-        return;
-      }
-
-      alert("Ocorrência finalizada!");
-      loadOcorrencias();
-    };
+  // ❌ Não quer foto → finaliza direto
+  if (!querFoto) {
+    await concluirOcorrencia(id, null);
+    return;
   }
+
+  // ✅ Criar input ANTES de qualquer await
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+
+  input.onchange = async () => {
+    const file = input.files[0];
+
+    // usuário abriu e cancelou
+    if (!file) {
+      await concluirOcorrencia(id, null);
+      return;
+    }
+
+    const imagem_conclusao_url = await uploadImagem(file);
+    await concluirOcorrencia(id, imagem_conclusao_url);
+  };
+
+  // 🔥 AQUI ainda é gesto direto do usuário
+  input.click();
+}
+
+
+async function concluirOcorrencia(id, imagem_conclusao_url) {
+  const hoje = new Date().toISOString().split("T")[0];
+
+  const payload = {
+    status: "concluída",
+    data_conclusao: hoje
+  };
+
+  if (imagem_conclusao_url) {
+    payload.imagem_conclusao_url = imagem_conclusao_url;
+  }
+
+  const { error } = await supabase
+    .from("ocorrencias")
+    .update(payload)
+    .eq("id", id);
+
+  if (error) {
+    console.error(error);
+    return alert("Erro ao finalizar ocorrência.");
+  }
+
+  alert("Ocorrência finalizada com sucesso!");
+
+// remove do cache imediatamente
+ocorrenciasCache = ocorrenciasCache.filter(o => o.id !== id);
+
+// força recarregar do banco (segurança)
+await loadOcorrencias();
+}
 
   // ---------- CHECKLIST: UI helpers ----------
   const espacosDisponiveis = ["Deck Gourmet","Salão de Festas","Salão de Jogos","Churrasqueira 1","Churrasqueira 2"];
@@ -1055,4 +1089,3 @@ document.getElementById("btnNextOcorrencias").onclick = () => {
 </script>
 </body>
 </html>
-
