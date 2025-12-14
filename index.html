@@ -463,6 +463,91 @@ paginaOcorrencias = 1;
     });
   }
 
+  // ---------- Gerar Relatório ----------
+
+async function gerarRelatorioPDF() {
+  const statusSelecionado = document.getElementById("filtroStatus").value;
+
+  let query = supabase
+    .from("ocorrencias")
+    .select(`
+      local,
+      data,
+      hora,
+      observacao,
+      status,
+      data_conclusao
+    `)
+    .order("data", { ascending: false });
+
+  if (statusSelecionado !== "todas") {
+    query = query.eq("status", statusSelecionado);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error(error);
+    alert("Erro ao gerar relatório");
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    alert("Nenhuma ocorrência encontrada para o filtro selecionado.");
+    return;
+  }
+
+  const doc = new jsPDF();
+
+  doc.setFontSize(14);
+  doc.text("Relatório de Ocorrências", 14, 15);
+
+  doc.setFontSize(10);
+  doc.text(
+    `Status: ${statusSelecionado === "todas" ? "Todas" : statusSelecionado}`,
+    14,
+    22
+  );
+
+  const rows = data.map(o => {
+    if (o.status === "concluída") {
+      return [
+        o.local || "",
+        `${o.data} ${o.hora || ""}`,
+        o.observacao || "",
+        o.status,
+        o.data_conclusao || "-"
+      ];
+    }
+
+    return [
+      o.local || "",
+      `${o.data} ${o.hora || ""}`,
+      o.observacao || "",
+      o.status,
+      "-"
+    ];
+  });
+
+  doc.autoTable({
+    startY: 28,
+    head: [[
+      "Local",
+      "Data / Hora",
+      "Observação",
+      "Status",
+      "Data da Conclusão"
+    ]],
+    body: rows,
+    styles: { fontSize: 8 }
+  });
+
+  doc.save(`relatorio_ocorrencias_${statusSelecionado}.pdf`);
+}
+
+document.getElementById("btnPDF").onclick = gerarRelatorioPDF;
+
+
   // ---------- FINALIZAR ----------
   async function finalizarOcorrencia(id) {
     const confirmar = confirm("Deseja realmente finalizar esta ocorrência?");
