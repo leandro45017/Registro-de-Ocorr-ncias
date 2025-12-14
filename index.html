@@ -151,17 +151,21 @@
   <div id="painel" class="card">
     <h2>Ocorrências Registradas</h2>
     <div class="filters">
-      <select id="filtroStatus">
-        <option value="todas">Todas</option>
-        <option value="pendente">Pendentes</option>
-        <option value="concluída">Concluídas</option>
-      </select>
+     <select id="filtroStatus">
+  <option value="pendente" selected>Pendentes</option>
+  <option value="todas">Todas</option>
+  <option value="concluída">Concluídas</option>
+</select>
       <input type="text" id="filtroLocal" placeholder="Filtrar por local (opcional)">
       <button id="btnRefresh" class="small">Atualizar</button>
     </div>
 
     <div id="listaOcorrencias"></div>
-
+<div id="paginacaoOcorrencias" class="center" style="margin-top:12px;">
+  <button id="btnPrevOcorrencias" class="small">⬅ Anterior</button>
+  <span id="infoPaginaOcorrencias" class="muted" style="margin:0 10px;"></span>
+  <button id="btnNextOcorrencias" class="small">Próxima ➡</button>
+</div>
     <div id="adminPanel" class="admin" style="display:none;">
       <h3>Painel do Master</h3>
       <div class="filters">
@@ -242,6 +246,8 @@
   let currentUser = null;
   let isMaster = false;
   let ocorrenciasCache = [];
+let paginaOcorrencias = 1;
+const OCORRENCIAS_POR_PAGINA = 10;
   let checklistItems = []; // [{id, name, ok:null/true/false, obs:''}]
   let checklistsCache = [];
 let paginaAtual = 1;
@@ -370,31 +376,70 @@ document.getElementById('btnChecklistOpen').onclick = async () => {
 
   // ---------- LOAD OCORRÊNCIAS ----------
   async function loadOcorrencias() {
-    let query = supabase.from("ocorrencias").select("*, usuarios (nome)").order("created_at", { ascending: false });
-    const filtroLocal = document.getElementById('filtroLocal').value.trim();
-    if (!isMaster) {
-      query = query.eq("usuario_id", currentUser);
-    }
-    const { data, error } = await query;
-    if (error) return console.error(error);
-    ocorrenciasCache = data;
-    renderOcorrencias();
+  let query = supabase
+    .from("ocorrencias")
+    .select("*, usuarios (nome)")
+    .order("created_at", { ascending: false });
+
+  const filtroStatus = document.getElementById("filtroStatus").value;
+
+  // aplica filtro de status somente se não for "todas"
+  if (filtroStatus !== "todas") {
+    query = query.eq("status", filtroStatus);
   }
 
+  const filtroLocal = document.getElementById('filtroLocal').value.trim();
+  if (!isMaster) {
+    query = query.eq("usuario_id", currentUser);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  ocorrenciasCache = data;
+paginaOcorrencias = 1;
+  renderOcorrencias();
+}
+
+
   document.getElementById('btnRefresh').onclick = loadOcorrencias;
-  document.getElementById('filtroStatus').onchange = renderOcorrencias;
+  document.getElementById('filtroStatus').onchange = loadOcorrencias;
 
   function renderOcorrencias() {
-    const lista = document.getElementById("listaOcorrencias");
-    lista.innerHTML = "";
-    const filtro = document.getElementById("filtroStatus").value;
-    const filtroLocal = document.getElementById('filtroLocal').value.trim().toLowerCase();
-    const ocorrenciasFiltradas = ocorrenciasCache.filter(o =>
-      (filtro === "todas" ? true : o.status === filtro)
-      && (!filtroLocal || (o.local || '').toLowerCase().includes(filtroLocal))
-    );
+  const lista = document.getElementById("listaOcorrencias");
+  const infoPagina = document.getElementById("infoPaginaOcorrencias");
 
-    ocorrenciasFiltradas.forEach(o => {
+  lista.innerHTML = "";
+
+  const filtroLocal = document.getElementById('filtroLocal').value.trim().toLowerCase();
+
+  const dadosFiltrados = ocorrenciasCache.filter(o =>
+    !filtroLocal || (o.local || '').toLowerCase().includes(filtroLocal)
+  );
+
+  const total = dadosFiltrados.length;
+  const totalPaginas = Math.ceil(total / OCORRENCIAS_POR_PAGINA);
+
+  if (paginaOcorrencias > totalPaginas) paginaOcorrencias = totalPaginas || 1;
+
+  const inicio = (paginaOcorrencias - 1) * OCORRENCIAS_POR_PAGINA;
+  const fim = inicio + OCORRENCIAS_POR_PAGINA;
+
+  const paginaDados = dadosFiltrados.slice(inicio, fim);
+
+  if (paginaDados.length === 0) {
+    lista.innerHTML = "<p>Nenhuma ocorrência encontrada.</p>";
+    infoPagina.textContent = "";
+    return;
+  }
+
+  infoPagina.textContent = `Página ${paginaOcorrencias} de ${totalPaginas}`;
+
+
+    paginaDados.forEach(o => {
       const div = document.createElement("div");
       div.classList.add("card");
       div.innerHTML = `
@@ -896,6 +941,25 @@ document.getElementById('btnNextPage').onclick = () => {
     renderMasterChecklists();
   }
 };
+
+document.getElementById("btnPrevOcorrencias").onclick = () => {
+  if (paginaOcorrencias > 1) {
+    paginaOcorrencias--;
+    renderOcorrencias();
+  }
+};
+
+document.getElementById("btnNextOcorrencias").onclick = () => {
+  const totalPaginas = Math.ceil(
+    ocorrenciasCache.length / OCORRENCIAS_POR_PAGINA
+  );
+
+  if (paginaOcorrencias < totalPaginas) {
+    paginaOcorrencias++;
+    renderOcorrencias();
+  }
+};
+
 
 </script>
 </body>
