@@ -12,6 +12,8 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
   <style>
     body { font-family: Arial, sans-serif; background: #f5f6fa; color: #333; margin: 0; padding: 20px; }
     h1, h2 { color: #21a498; margin:0; }
@@ -464,6 +466,8 @@ paginaOcorrencias = 1;
   }
 
   // ---------- Gerar Relatório ----------
+
+const { jsPDF } = window.jspdf;
 
 async function gerarRelatorioPDF() {
   const statusSelecionado = document.getElementById("filtroStatus").value;
