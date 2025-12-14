@@ -226,6 +226,10 @@
     </div>
 
     <div id="listaChecklistsMaster"></div>
+	<div id="paginacaoChecklists" class="center" style="margin-top:12px;">
+  <button id="btnPrevPage" class="small">⬅ Anterior</button>
+  <span id="infoPagina" class="muted" style="margin:0 10px;"></span>
+  <button id="btnNextPage" class="small">Próxima ➡</button>
   </div>
 
 <script>
@@ -240,6 +244,9 @@
   let ocorrenciasCache = [];
   let checklistItems = []; // [{id, name, ok:null/true/false, obs:''}]
   let checklistsCache = [];
+let paginaAtual = 1;
+const ITENS_POR_PAGINA = 10;
+	
 
   // ---------- NAV / UI helpers ----------
   const show = (id) => {
@@ -682,6 +689,7 @@ const dataISO = agora.toISOString(); // salva com horário real do sistema
     const { data, error } = await supabase.from('checklists').select('*, usuarios (nome)').order('created_at', { ascending: false });
     if (error) return console.error("Erro ao carregar checklists:", error);
     checklistsCache = data;
+	 paginaAtual = 1; // 👈 sempre volta para a primeira página
     renderMasterChecklists();
   }
 
@@ -746,15 +754,30 @@ async function showMasterChecklistPanel() {
 
 function renderMasterChecklists(data = checklistsCache) {
   const container = document.getElementById('listaChecklistsMaster');
+  const infoPagina = document.getElementById('infoPagina');
   if (!container) return;
+
   container.innerHTML = '';
 
-  if (!data || data.length === 0) {
+  const total = data.length;
+  const totalPaginas = Math.ceil(total / ITENS_POR_PAGINA);
+
+  if (paginaAtual > totalPaginas) paginaAtual = totalPaginas || 1;
+
+  const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+  const fim = inicio + ITENS_POR_PAGINA;
+
+  const paginaDados = data.slice(inicio, fim);
+
+  if (paginaDados.length === 0) {
     container.innerHTML = '<p>Nenhum checklist encontrado.</p>';
+    infoPagina.textContent = '';
     return;
   }
 
-  data.forEach((item, index) => {
+  infoPagina.textContent = `Página ${paginaAtual} de ${totalPaginas}`;
+
+  paginaDados.forEach((item, index) => {
     // Corrige o horário para o fuso de Brasília
     const dataLocal = new Date(item.data);
     const dataFormatada = dataLocal.toLocaleString('pt-BR', {
@@ -855,23 +878,22 @@ document.getElementById('btnCadastrar').onclick = async () => {
 
   // If user is master and on load, show menu (handy for development)
   // showMenuButtons(); // will be toggled after login
+
+document.getElementById('btnPrevPage').onclick = () => {
+  if (paginaAtual > 1) {
+    paginaAtual--;
+    renderMasterChecklists();
+  }
+};
+
+document.getElementById('btnNextPage').onclick = () => {
+  const totalPaginas = Math.ceil(checklistsCache.length / ITENS_POR_PAGINA);
+  if (paginaAtual < totalPaginas) {
+    paginaAtual++;
+    renderMasterChecklists();
+  }
+};
+
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
