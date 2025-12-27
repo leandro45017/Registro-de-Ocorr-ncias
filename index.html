@@ -245,7 +245,7 @@
   // === Supabase setup (usando suas credenciais fornecidas) ===
   const SUPABASE_URL = "https://uudiqxghmognvkqfmknu.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1ZGlxeGdobW9nbnZrcWZta251Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyMDQ2MjMsImV4cCI6MjA3NTc4MDYyM30.oGj4_C_GUvdK5WEdIl3dWCZzwAUkCf3FTOvEPn0ERBY";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // state
   let currentUser = null;
@@ -318,7 +318,7 @@ document.getElementById('btnChecklistOpen').onclick = async () => {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("usuarios")
       .select("*")
       .or(`nome.eq.${user},telefone.eq.${user}`)
@@ -338,9 +338,9 @@ document.getElementById('btnChecklistOpen').onclick = async () => {
     if (!file) return null;
     try {
       const nome = `${Date.now()}_${file.name}`;
-      const { data, error } = await supabase.storage.from("ocorrencias").upload(nome, file);
+      const { data, error } = await supabaseClient.storage.from("ocorrencias").upload(nome, file);
       if (error) { console.error("Erro upload:", error); return null; }
-      const { data: urlData } = supabase.storage.from("ocorrencias").getPublicUrl(nome);
+      const { data: urlData } = supabaseClient.storage.from("ocorrencias").getPublicUrl(nome);
       return urlData.publicUrl;
     } catch(e) {
       console.error(e);
@@ -362,7 +362,7 @@ document.getElementById('btnChecklistOpen').onclick = async () => {
 
     const imagem_url = await uploadImagem(imagem);
 
-    const { error } = await supabase.from("ocorrencias").insert([{
+    const { error } = await supabaseClient.from("ocorrencias").insert([{
       usuario_id: currentUser,
       tipo, data: dataV, hora, local, observacao, imagem_url,
       status: "pendente"
@@ -381,7 +381,7 @@ document.getElementById('btnChecklistOpen').onclick = async () => {
 
   // ---------- LOAD OCORRÊNCIAS ----------
   async function loadOcorrencias() {
-  let query = supabase
+  let query = supabaseClient
     .from("ocorrencias")
     .select("*, usuarios (nome)")
     .order("created_at", { ascending: false });
@@ -476,7 +476,7 @@ const { jsPDF } = window.jspdf;
 async function gerarRelatorioPDF() {
   const statusSelecionado = document.getElementById("filtroStatus").value;
 
-  let query = supabase
+  let query = supabaseClient
     .from("ocorrencias")
     .select(`
       local,
@@ -603,7 +603,7 @@ async function concluirOcorrencia(id, imagem_conclusao_url) {
     payload.imagem_conclusao_url = imagem_conclusao_url;
   }
 
-  const { error } = await supabase
+  const { error } = await supabaseClient
     .from("ocorrencias")
     .update(payload)
     .eq("id", id);
@@ -844,7 +844,7 @@ const payload = {
 };
 
 
-    const { error } = await supabase.from('checklists').insert([payload]);
+    const { error } = await supabaseClient.from('checklists').insert([payload]);
     if (error) {
       console.error("Erro ao salvar checklist:", error);
       alert("Erro ao salvar checklist: " + (error.message || JSON.stringify(error)));
@@ -867,7 +867,7 @@ const payload = {
     // only for master
     if (!isMaster) return;
     // basic load
-    const { data, error } = await supabase.from('checklists').select('*, usuarios (nome)').order('created_at', { ascending: false });
+    const { data, error } = await supabaseClient.from('checklists').select('*, usuarios (nome)').order('created_at', { ascending: false });
     if (error) return console.error("Erro ao carregar checklists:", error);
     checklistsCache = data;
 	 paginaAtual = 1; // 👈 sempre volta para a primeira página
@@ -911,7 +911,7 @@ async function showMasterChecklistPanel() {
     const usuario = document.getElementById('filtroUsuario').value.trim();
     const data = document.getElementById('filtroData').value;
 
-    let query = supabase
+    let query = supabaseClient
       .from('checklists')
       .select('*, usuarios (nome)')
       .order('created_at', { ascending: false });
@@ -1030,7 +1030,7 @@ document.getElementById('btnCadastrar').onclick = async () => {
   if (!senha) return alert("Senha obrigatória.");
 
   // verificar se já existe usuário com o mesmo nome ou telefone
-  const { data: existing, error: checkError } = await supabase
+  const { data: existing, error: checkError } = await supabaseClient
     .from("usuarios")
     .select("*")
     .or(`nome.eq.${nome},telefone.eq.${telefone}`)
@@ -1040,7 +1040,7 @@ document.getElementById('btnCadastrar').onclick = async () => {
   if (existing.length > 0) return alert("Já existe um usuário com esse nome ou telefone.");
 
   // inserir no Supabase
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from("usuarios")
     .insert([{ nome, telefone, senha }]);
 
@@ -1097,6 +1097,7 @@ document.getElementById("btnNextOcorrencias").onclick = () => {
 </script>
 </body>
 </html>
+
 
 
 
